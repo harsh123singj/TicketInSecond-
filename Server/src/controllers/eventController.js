@@ -34,22 +34,64 @@ export const createEvent = async (req, res) => {
             });
         }
 
-        const event = await prisma.event.create({
-            data: {
-                name,
-                type,
-                eventDate: new Date(eventDate),
-                eventTime,
-                venueName,
-                venueAddress,
-                totalTickets: Number(totalTickets),
-                ticketPrice: Number(ticketPrice)
+        const tickets = Number(totalTickets);
+        const price = Number(ticketPrice);
+
+        if (!Number.isInteger(tickets) || tickets <= 0) {
+            return res.status(400).json({
+                message: "Total tickets must be a positive integer"
+            });
+        }
+
+        if (price < 0 || Number.isNaN(price)) {
+            return res.status(400).json({
+                message: "Ticket price must be a valid number"
+            });
+        }
+
+        // ==========================================
+        // CREATE EVENT + SEATS IN ONE TRANSACTION
+        // ==========================================
+
+        const result = await prisma.$transaction(async (tx) => {
+
+            // 1. Create event
+            const event = await tx.event.create({
+                data: {
+                    name,
+                    type,
+                    eventDate: new Date(eventDate),
+                    eventTime,
+                    venueName,
+                    venueAddress,
+                    totalTickets: tickets,
+                    ticketPrice: price
+                }
+            });
+
+            // 2. Generate seats automatically
+            const seats = [];
+
+            for (let i = 1; i <= tickets; i++) {
+                seats.push({
+                    eventId: event.id,
+                    seatNumber: `A${i}`,
+                    status: "AVAILABLE"
+                });
             }
+
+            // 3. Insert all seats
+            await tx.seat.createMany({
+                data: seats
+            });
+
+            // 4. Return event
+            return event;
         });
 
         return res.status(201).json({
-            message: "Event created successfully",
-            event
+            message: "Event and seats created successfully",
+            event: result
         });
 
     } catch (error) {

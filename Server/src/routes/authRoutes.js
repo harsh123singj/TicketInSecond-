@@ -10,7 +10,10 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const authRoute = Router();
 
-authRoute.post("/register", registerUser);
+authRoute.post("/register", (req, res, next) => {
+    console.log("REGISTER ROUTE HIT");
+    next();
+}, registerUser);
 
 authRoute.post("/login", loginUser);
 
