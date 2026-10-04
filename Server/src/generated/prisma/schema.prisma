@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  bookings Booking[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Event {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String
+  eventDate    DateTime
+  eventTime    String
+  venueName    String
+  venueAddress String
+  totalTickets Int
+  ticketPrice  Float
+  createdAt    DateTime @default(now())
+
+  bookings Booking[]
+  seats    Seat[]
+}
+
+model Booking {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  eventId       Int
+  seatNumber    String
+  paymentMethod String
+  ticketCount   Int
+  status        BookingStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  expiresAt     DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model OutboxEvent {
+  id          Int      @id @default(autoincrement())
+  eventType   String
+  aggregateId Int
+  payload     Json
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Seat {
+  id         Int        @id @default(autoincrement())
+  eventId    Int
+  seatNumber String
+  status     SeatStatus @default(AVAILABLE)
+  createdAt  DateTime   @default(now())
+
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, seatNumber])
+}
+
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+}
